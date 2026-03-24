@@ -25,7 +25,10 @@ pod2spm wrap <pod-name> --version <ver> --platform <ios|tvos|macos> --output <di
 ```
 
 ```bash
-# Pod ships prebuilt XCFrameworks
+# Automatically fetch and wrap the latest version
+pod2spm wrap SomeSDK --platform ios --output ./SomeSDKPackage
+
+# Pin to a specific version
 pod2spm wrap SomeSDK --version 3.2.0 --platform ios --output ./SomeSDKPackage
 
 # Pod ships source only — builds XCFramework from scratch
@@ -37,7 +40,7 @@ pod2spm wrap SomeSDK --version 3.2.0 -p ios -o ./SomeSDKPackage --tag
 
 | Flag | Default | Description |
 |---|---|---|
-| `--version`, `-v` | required | Pod version to install |
+| `--version`, `-v` | `latest` | Pod version to install |
 | `--platform`, `-p` | `ios` | `ios`, `tvos`, or `macos` |
 | `--output`, `-o` | required | Output directory |
 | `--tag` | off | `git init` + commit + tag |

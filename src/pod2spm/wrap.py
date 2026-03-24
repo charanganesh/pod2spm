@@ -138,7 +138,7 @@ def run_wrap(
 
         # Step 2: pod install
         console.print("\n[bold cyan]Step 2:[/bold cyan] Running pod install")
-        _run(["pod", "install", "--no-repo-update"], cwd=work_dir)
+        _run(["pod", "install", "--repo-update"], cwd=work_dir)
 
         pods_dir = work_dir / "Pods"
 

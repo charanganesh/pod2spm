@@ -7,7 +7,7 @@ import typer
 from rich.console import Console
 
 from pod2spm.wrap import run_wrap
-from pod2spm.versions import check_versions as _check_versions
+from pod2spm.versions import check_versions as _check_versions, fetch_latest_version
 
 app = typer.Typer(
     name="pod2spm",
@@ -20,7 +20,7 @@ console = Console()
 @app.command()
 def wrap(
     pod_name: str = typer.Argument(help="Name of the CocoaPod to wrap"),
-    version: str = typer.Option(..., "--version", "-v", help="Pod version to install"),
+    version: str = typer.Option("latest", "--version", "-v", help="Pod version to install, or 'latest'"),
     platform: str = typer.Option(
         "ios", "--platform", "-p", help="Target platform: ios, tvos, or macos"
     ),
@@ -39,6 +39,15 @@ def wrap(
     if platform not in ("ios", "tvos", "macos"):
         console.print(f"[red]Unsupported platform: {platform}[/red]")
         raise typer.Exit(1)
+
+    if version == "latest":
+        console.print(f"Fetching latest version of {pod_name}...")
+        resolved = fetch_latest_version(pod_name)
+        if not resolved:
+            console.print(f"[red]Could not resolve latest version for {pod_name}[/red]")
+            raise typer.Exit(1)
+        console.print(f"Latest version: {resolved}")
+        version = resolved
 
     deployment_targets = {"ios": min_ios, "tvos": min_tvos, "macos": min_macos}
     min_target = deployment_targets[platform]
