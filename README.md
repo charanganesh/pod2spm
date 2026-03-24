@@ -2,7 +2,7 @@
 
 CLI tool to wrap CocoaPods as Swift Package Manager binary packages (XCFrameworks).
 
-Built for the real-world problem of integrating ad SDKs and analytics frameworks (Google-Mobile-Ads-SDK, CleverTap, etc.) into SPM-based projects when the vendor only ships a CocoaPod.
+Built for the real-world problem of integrating SDKs into SPM-based projects when the vendor only ships a CocoaPod.
 
 ## Install
 
@@ -23,14 +23,14 @@ Requires macOS with Xcode and CocoaPods installed.
 ### Wrap a pod
 
 ```bash
-# Case 1: Pod ships prebuilt XCFrameworks (e.g. Google-Mobile-Ads-SDK)
-pod2spm wrap Google-Mobile-Ads-SDK --version 12.14.0 --platform ios --output ./GoogleAdsSDK
+# Case 1: Pod ships prebuilt XCFrameworks
+pod2spm wrap SomeSDK --version 3.2.0 --platform ios --output ./SomeSDKPackage
 
-# Case 2: Pod ships source only (e.g. CleverTap tvOS)
-pod2spm wrap CleverTap-iOS-SDK --version 7.3.3 --platform tvos --output ./CleverTapSDK
+# Case 2: Pod ships source only
+pod2spm wrap AnotherSDK --version 1.5.0 --platform tvos --output ./AnotherSDKPackage
 
 # With git init + tag
-pod2spm wrap Google-Mobile-Ads-SDK --version 12.14.0 -p ios -o ./GoogleAdsSDK --tag
+pod2spm wrap SomeSDK --version 3.2.0 -p ios -o ./SomeSDKPackage --tag
 ```
 
 This will:
@@ -50,7 +50,7 @@ Compares pinned versions in your Podfile against the latest on CocoaPods Trunk. 
 
 ## How it works
 
-**Case 1 — Prebuilt XCFrameworks:** Some pods (like Google-Mobile-Ads-SDK) vendor prebuilt `.xcframework` bundles. pod2spm detects these in the `Pods/` directory after install and copies them directly.
+**Case 1 — Prebuilt XCFrameworks:** Some pods vendor prebuilt `.xcframework` bundles. pod2spm detects these in the `Pods/` directory after install and copies them directly.
 
 **Case 2 — Source-only pods:** For pods that only ship source code, pod2spm runs `xcodebuild archive` for device and simulator slices, then combines them with `xcodebuild -create-xcframework`.
 
@@ -58,7 +58,7 @@ Compares pinned versions in your Podfile against the latest on CocoaPods Trunk. 
 
 This tool extracts and repackages SDK binaries. Before distributing the output:
 - Check the SDK's license for redistribution terms
-- Some SDKs (e.g. Google Ads) require specific attribution
+- Some SDKs require specific attribution
 - Consider hosting the generated package in a private repo
 
 ## Development
