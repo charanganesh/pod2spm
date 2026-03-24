@@ -1,8 +1,8 @@
 # pod2spm
 
-CLI tool to wrap CocoaPods as Swift Package Manager binary packages (XCFrameworks).
+Convert any CocoaPod into a Swift Package Manager binary package.
 
-Built for the real-world problem of integrating SDKs into SPM-based projects when the vendor only ships a CocoaPod.
+pod2spm handles the full pipeline: installing the pod, extracting or building XCFrameworks, copying resource bundles, and generating a `Package.swift`. Works for pods that ship prebuilt binaries and pods that ship source only.
 
 ## Install
 
@@ -10,62 +10,72 @@ Built for the real-world problem of integrating SDKs into SPM-based projects whe
 brew install charanganesh/tap/pod2spm
 ```
 
-Or with pip:
-
 ```bash
 pip install pod2spm
 ```
 
-Requires macOS with Xcode and CocoaPods installed.
+Requires macOS, Xcode, and CocoaPods.
 
 ## Usage
 
-### Wrap a pod
+### wrap
 
 ```bash
-# Case 1: Pod ships prebuilt XCFrameworks
+pod2spm wrap <pod-name> --version <ver> --platform <ios|tvos|macos> --output <dir>
+```
+
+```bash
+# Pod ships prebuilt XCFrameworks
 pod2spm wrap SomeSDK --version 3.2.0 --platform ios --output ./SomeSDKPackage
 
-# Case 2: Pod ships source only
+# Pod ships source only — builds XCFramework from scratch
 pod2spm wrap AnotherSDK --version 1.5.0 --platform tvos --output ./AnotherSDKPackage
 
-# With git init + tag
+# Git init + tag the output (useful for private SPM hosting)
 pod2spm wrap SomeSDK --version 3.2.0 -p ios -o ./SomeSDKPackage --tag
 ```
 
-This will:
-1. Create a temp Xcode project and install the pod
-2. Detect if the pod ships prebuilt XCFrameworks or needs building from source
-3. Extract or build the XCFramework(s)
-4. Copy any resource bundles
-5. Generate a `Package.swift` with the correct binary targets
+| Flag | Default | Description |
+|---|---|---|
+| `--version`, `-v` | required | Pod version to install |
+| `--platform`, `-p` | `ios` | `ios`, `tvos`, or `macos` |
+| `--output`, `-o` | required | Output directory |
+| `--tag` | off | `git init` + commit + tag |
+| `--min-ios` | `15.0` | Minimum iOS deployment target |
+| `--min-tvos` | `15.0` | Minimum tvOS deployment target |
+| `--min-macos` | `12.0` | Minimum macOS deployment target |
 
-### Check pod versions
+### check-versions
 
 ```bash
 pod2spm check-versions ./Podfile
 ```
 
-Compares pinned versions in your Podfile against the latest on CocoaPods Trunk. Highlights outdated pods.
+Queries CocoaPods Trunk for each pod in a Podfile and prints a comparison table against pinned versions.
 
 ## How it works
 
-**Case 1 — Prebuilt XCFrameworks:** Some pods vendor prebuilt `.xcframework` bundles. pod2spm detects these in the `Pods/` directory after install and copies them directly.
+pod2spm runs `pod install` in a temporary Xcode project, then takes one of two paths.
 
-**Case 2 — Source-only pods:** For pods that only ship source code, pod2spm runs `xcodebuild archive` for device and simulator slices, then combines them with `xcodebuild -create-xcframework`.
+**Prebuilt XCFrameworks:** If the pod vendors `.xcframework` bundles in `Pods/`, they're copied directly into the output. No compilation.
 
-## SDK Redistribution
+**Source-only pods:** `xcodebuild archive` runs for device and simulator slices, then `xcodebuild -create-xcframework` merges them.
 
-This tool extracts and repackages SDK binaries. Before distributing the output:
-- Check the SDK's license for redistribution terms
-- Some SDKs require specific attribution
-- Consider hosting the generated package in a private repo
+Resource bundles are detected in both cases and included as a separate SPM resource target.
 
-## Development
+## Output
 
-```bash
-pip install -e ".[dev]"
 ```
+SomeSDKPackage/
+├── Package.swift
+├── SomeSDK.xcframework/
+└── Resources/
+    └── SomeSDKResources.bundle/
+```
+
+## SDK redistribution
+
+This tool repackages SDK binaries. Check the SDK's license for redistribution rights before distributing the output. Consider hosting in a private repo to limit access.
 
 ## License
 
