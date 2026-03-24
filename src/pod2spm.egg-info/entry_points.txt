@@ -1,0 +1,2 @@
+[console_scripts]
+pod2spm = pod2spm.cli:app
