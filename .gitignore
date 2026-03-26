@@ -1,7 +1,5 @@
-__pycache__/
-*.pyc
-*.egg-info/
-.venv/
-.pytest_cache/
-dist/
-build/
+vendor/
+*.gem
+.bundle/
+Gemfile.lock
+.DS_Store
