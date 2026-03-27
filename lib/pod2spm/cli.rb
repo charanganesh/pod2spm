@@ -19,9 +19,11 @@ module Pod2SPM
     method_option :verbose,          aliases: "-V", type: :boolean, default: false,    desc: "Print all shell commands and their output"
     method_option :json,                            type: :boolean, default: false,    desc: "Print a JSON summary of the result to stdout"
     def wrap(pod_name)
+      Pod2SPM::UI.banner
+
       platform = options[:platform]
       unless VALID_PLATFORMS.include?(platform)
-        error("Invalid platform '#{platform}'. Must be one of: #{VALID_PLATFORMS.join(", ")}")
+        Pod2SPM::UI.error("Invalid platform '#{platform}'. Must be one of: #{VALID_PLATFORMS.join(", ")}")
         exit 1
       end
 
@@ -29,13 +31,13 @@ module Pod2SPM
 
       version = options[:version]
       if version == "latest"
-        puts "Fetching latest version of #{pod_name}..."
+        Pod2SPM::UI.fetching_version(pod_name)
         version = Pod2SPM::Versions.fetch_latest(pod_name)
         if version.nil?
-          error("Pod '#{pod_name}' has no published versions on Trunk. Use --version to specify one.")
+          Pod2SPM::UI.error("Pod '#{pod_name}' has no published versions on Trunk. Use --version to specify one.")
           exit 1
         end
-        puts "Latest version: #{version}"
+        Pod2SPM::UI.resolved_version(version)
       end
 
       min_deployment_target = case platform
@@ -56,32 +58,27 @@ module Pod2SPM
         json_output: options[:json],
       )
     rescue Pod2SPM::Error => e
-      error(e.message)
+      Pod2SPM::UI.error(e.message)
       exit 1
     rescue => e
-      error(e.message)
+      Pod2SPM::UI.error(e.message)
       exit 1
     end
 
     desc "check-versions PODFILE", "Compare pinned pod versions against CocoaPods Trunk"
     def check_versions(podfile_path)
+      Pod2SPM::UI.banner
       unless File.exist?(podfile_path)
-        error("Podfile not found: #{podfile_path}")
+        Pod2SPM::UI.error("Podfile not found: #{podfile_path}")
         exit 1
       end
       Pod2SPM::Versions.check(podfile_path)
     rescue Pod2SPM::Error => e
-      error(e.message)
+      Pod2SPM::UI.error(e.message)
       exit 1
     rescue => e
-      error(e.message)
+      Pod2SPM::UI.error(e.message)
       exit 1
-    end
-
-    private
-
-    def error(msg)
-      $stderr.puts "Error: #{msg}"
     end
   end
 end

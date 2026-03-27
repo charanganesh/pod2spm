@@ -1,5 +1,6 @@
 require_relative "pod2spm/version"
 require_relative "pod2spm/errors"
+require_relative "pod2spm/ui"
 require_relative "pod2spm/shell"
 require_relative "pod2spm/podfile"
 require_relative "pod2spm/detect"

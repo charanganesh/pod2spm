@@ -40,21 +40,21 @@ module Pod2SPM
       framework_name = base_pod_name.gsub("-", "")
 
       if base_pod_name != pod_name
-        $stderr.puts "Subspec detected: using '#{base_pod_name}' as the package name"
+        UI.info("Subspec detected: using '#{base_pod_name}' as the package name")
       end
 
       result = {}
 
       work_proc = lambda do |tmp|
-        $stderr.puts "Working in #{tmp}\n"
+        UI.working_in(tmp)
 
         # Step 1: Create temp Xcode project + Podfile
-        $stderr.puts "Step 1: Creating temp project and Podfile"
+        UI.step(1, "Scaffolding temp Xcode project")
         create_temp_xcode_project(tmp, platform)
         Pod2SPM::Podfile.generate(pod_name, version, platform, min_deployment_target, tmp)
 
         # Step 2: pod install
-        $stderr.puts "\nStep 2: Running pod install"
+        UI.step(2, "Running pod install")
         pod_install_cmd = ["pod", "install"]
         pod_install_cmd << "--repo-update" if repo_update
         Shell.run!(pod_install_cmd, cwd: tmp)
@@ -62,19 +62,18 @@ module Pod2SPM
         pods_dir = File.join(tmp, "Pods")
 
         # Step 3: Detect case
-        $stderr.puts "\nStep 3: Scanning for prebuilt XCFrameworks"
+        UI.step(3, "Scanning for prebuilt XCFrameworks")
         detection = Pod2SPM::Detect.scan(pods_dir, base_pod_name)
 
         unless detection.vendored_frameworks.empty?
-          $stderr.puts "  Warning: found #{detection.vendored_frameworks.length} plain .framework bundle(s) " \
-            "(not .xcframework). These are not supported and will be skipped:"
-          detection.vendored_frameworks.each { |f| $stderr.puts "    - #{File.basename(f)}" }
+          UI.warn("Found #{detection.vendored_frameworks.length} plain .framework bundle(s) (not .xcframework) — will be skipped:")
+          detection.vendored_frameworks.each { |f| UI.info(File.basename(f)) }
         end
 
         xcframework_names = []
 
         if detection.prebuilt?
-          $stderr.puts "  Found #{detection.xcframeworks.length} prebuilt XCFramework(s)"
+          UI.success("Found #{detection.xcframeworks.length} prebuilt XCFramework(s)")
           result[:source] = :prebuilt
           detection.xcframeworks.each do |xcf|
             name = File.basename(xcf)
@@ -82,16 +81,16 @@ module Pod2SPM
             FileUtils.rm_rf(dest)
             FileUtils.cp_r(xcf, dest)
             xcframework_names << name
-            $stderr.puts "  Copied #{name}"
+            UI.substep("Copied #{name}")
           end
         else
-          $stderr.puts "  No prebuilt XCFrameworks — building from source"
+          UI.info("No prebuilt XCFrameworks — building from source")
           result[:source] = :built
           workspace = File.join(tmp, "TempTarget.xcworkspace")
           raise WorkspaceNotFoundError, "pod install did not create a .xcworkspace" unless File.directory?(workspace)
 
           scheme = Pod2SPM::Build.discover_scheme(workspace, base_pod_name)
-          $stderr.puts "  Using scheme: #{scheme}"
+          UI.info("Using scheme: #{scheme}")
 
           xcf_path = Pod2SPM::Build.xcframework(
             workspace: workspace,
@@ -106,9 +105,10 @@ module Pod2SPM
         # Step 4: Copy resource bundles
         bundle_names = []
         if detection.resource_bundles.empty?
-          $stderr.puts "\nStep 4: No resource bundles found"
+          UI.step(4, "Resource bundles")
+          UI.info("None found")
         else
-          $stderr.puts "\nStep 4: Copying #{detection.resource_bundles.length} resource bundle(s)"
+          UI.step(4, "Copying #{detection.resource_bundles.length} resource bundle(s)")
           resources_dir = File.join(output_dir, "Resources")
           FileUtils.mkdir_p(resources_dir)
           detection.resource_bundles.each do |bundle|
@@ -117,12 +117,12 @@ module Pod2SPM
             FileUtils.rm_rf(dest)
             FileUtils.cp_r(bundle, dest)
             bundle_names << name
-            $stderr.puts "  Copied #{name}"
+            UI.substep("Copied #{name}")
           end
         end
 
         # Step 5: Generate Package.swift
-        $stderr.puts "\nStep 5: Generating Package.swift"
+        UI.step(5, "Generating Package.swift")
         pkg_path = Pod2SPM::PackageGen.generate(
           package_name: base_pod_name,
           xcframeworks: xcframework_names,
@@ -131,7 +131,7 @@ module Pod2SPM
           min_deployment_target: min_deployment_target,
           output_dir: output_dir,
         )
-        $stderr.puts "  Written to #{pkg_path}"
+        UI.substep("Written to #{pkg_path}")
 
         result.merge!(
           pod: pod_name,
@@ -145,7 +145,7 @@ module Pod2SPM
 
       if keep_temp
         tmp = Dir.mktmpdir("pod2spm_")
-        $stderr.puts "(--keep-temp) Working directory: #{tmp}"
+        UI.info("(--keep-temp) Working directory: #{tmp}")
         work_proc.call(tmp)
       else
         Dir.mktmpdir("pod2spm_") { |tmp| work_proc.call(tmp) }
@@ -155,16 +155,16 @@ module Pod2SPM
 
       # Step 6: Optionally git init + tag
       if git_tag
-        $stderr.puts "\nStep 6: Initializing git repo and tagging"
+        UI.step(6, "Initializing git repo and tagging")
         Shell.run!(["git", "init"], cwd: output_dir)
         Shell.run!(["git", "add", "."], cwd: output_dir)
         Shell.run!(["git", "commit", "-m", "pod2spm: wrap #{pod_name} #{version}"], cwd: output_dir)
         Shell.run!(["git", "tag", version], cwd: output_dir)
-        $stderr.puts "  Tagged as #{version}"
+        UI.success("Tagged as #{version}")
         result[:git_tag] = version
       end
 
-      $stderr.puts "\nDone! Output at #{output_dir}"
+      UI.done(output_dir)
 
       if json_output
         puts JSON.pretty_generate(result.transform_keys(&:to_s))
@@ -259,12 +259,12 @@ module Pod2SPM
       pkg_file = File.join(output_dir, "Package.swift")
       return unless File.exist?(pkg_file)
 
-      $stderr.puts "\nValidating Package.swift..."
+      UI.step("✓", "Validating Package.swift")
       Shell.run!(["swift", "package", "dump-package"], cwd: output_dir)
-      $stderr.puts "  Package.swift is valid"
+      UI.success("Package.swift is valid")
     rescue Pod2SPM::CommandError => e
-      $stderr.puts "  Warning: Package.swift validation failed. The file may have syntax errors."
-      $stderr.puts "  #{e.stderr}" if e.stderr && !e.stderr.empty?
+      UI.warn("Package.swift validation failed — the file may have syntax errors.")
+      UI.info(e.stderr) if e.stderr && !e.stderr.empty?
     end
     private_class_method :validate_package_swift
   end
